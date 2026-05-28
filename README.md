@@ -1,102 +1,132 @@
-'use client';
+# CBNUMatch 🎓
 
-import { useState, useEffect, useTransition } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { getPostDetail, updatePost } from '@/app/actions/matchActions';
-import type { PostCategory } from '@/types/database.types';
+충북대학교 학생 전용 스포츠·스터디·공모전 매칭 플랫폼
 
-const CATEGORIES: { value: PostCategory; label: string; emoji: string }[] = [
-  { value: 'SPORTS', label: '스포츠', emoji: '⚽' },
-  { value: 'STUDY', label: '스터디', emoji: '📚' },
-  { value: 'CONTEST', label: '공모전', emoji: '🏆' },
-];
+## 기술 스택
 
-export default function EditPostPage() {
-  const params = useParams();
-  const router = useRouter();
-  const postId = params.id as string;
-  const [isPending, startTransition] = useTransition();
-  const [post, setPost] = useState<any>(null);
-  const [category, setCategory] = useState<PostCategory>('STUDY');
-  const [error, setError] = useState('');
+| 항목 | 내용 |
+|---|---|
+| Frontend/Backend | Next.js 15 App Router (TypeScript) |
+| Database | Supabase (PostgreSQL + RLS) |
+| Auth | Supabase Auth — @cbnu.ac.kr 도메인 강제 |
+| 보안 | AES-256-GCM 암호화 + HMAC-SHA256 해시 |
+| 배포 | Vercel (GitHub 자동 배포) |
 
-  useEffect(() => {
-    getPostDetail(postId).then((res) => {
-      if (res.success && res.data.isAuthor) {
-        setPost(res.data);
-        setCategory(res.data.category);
-      } else {
-        router.push(`/posts/${postId}`);
-      }
-    });
-  }, [postId, router]);
+---
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError('');
-    const fd = new FormData(e.currentTarget);
-    startTransition(async () => {
-      const result = await updatePost(postId, {
-        title: fd.get('title') as string,
-        content: fd.get('content') as string,
-        category,
-        maxMembers: Number(fd.get('maxMembers')),
-        contact: (fd.get('contact') as string) || undefined,
-        deadline: (fd.get('deadline') as string) || undefined,
-      });
-      if (result.success) router.push(`/posts/${postId}`);
-      else setError(result.error);
-    });
-  }
+## 로컬 개발 시작
 
-  if (!post) return <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><span className="spinner" style={{ width: '32px', height: '32px' }} /></div>;
+### 1. 패키지 설치
 
-  return (
-    <div className="page-container fade-up" style={{ paddingTop: '32px', paddingBottom: '80px', maxWidth: '640px' }}>
-      <h1 style={{ fontSize: '24px', fontWeight: '800', letterSpacing: '-0.03em', marginBottom: '28px' }}>게시글 수정</h1>
+```bash
+npm install
+```
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div>
-          <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>카테고리</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {CATEGORIES.map(({ value, label, emoji }) => (
-              <button key={value} type="button" onClick={() => setCategory(value)}
-                style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: '600', border: '1px solid', borderColor: category === value ? 'var(--accent-blue)' : 'var(--border)', background: category === value ? 'rgba(59,130,246,0.12)' : 'var(--bg-elevated)', color: category === value ? 'var(--accent-blue)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
-                {emoji} {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>제목</label>
-          <input name="title" required defaultValue={post.title} className="input-base" />
-        </div>
-        <div>
-          <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>내용</label>
-          <textarea name="content" required defaultValue={post.content} className="input-base" style={{ resize: 'vertical', minHeight: '160px' }} />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>모집 인원</label>
-            <input name="maxMembers" type="number" min={1} max={20} defaultValue={post.max_members} className="input-base" />
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>마감일</label>
-            <input name="deadline" type="date" defaultValue={post.deadline ?? ''} className="input-base" />
-          </div>
-        </div>
-        <div>
-          <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>연락처 변경 <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>(변경 시에만 입력)</span></label>
-          <input name="contact" placeholder="새 연락처 입력 (비워두면 기존 유지)" className="input-base" />
-        </div>
-        {error && <div className="error-box">{error}</div>}
-        <div style={{ display: 'flex', gap: '10px', paddingTop: '8px' }}>
-          <button type="button" onClick={() => router.back()} className="btn-secondary" style={{ flex: 1 }}>취소</button>
-          <button type="submit" disabled={isPending} className="btn-primary" style={{ flex: 2 }}>
-            {isPending ? <span className="spinner" /> : '저장'}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
+### 2. 환경변수 설정
+
+```bash
+cp .env.local.example .env.local
+```
+
+`.env.local`을 열고 아래 값들을 채워주세요:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbG...
+
+# 생성: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+ENCRYPTION_KEY=<64자 헥사 스트링>
+
+# 생성: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+PEPPER_KEY=<고엔트로피 문자열>
+```
+
+### 3. Supabase 스키마 적용
+
+Supabase 대시보드 → SQL Editor → `supabase_schema.sql` 전체 붙여넣기 후 실행
+
+### 4. Supabase Auth 리다이렉트 URL 설정
+
+Supabase → Authentication → URL Configuration:
+- Site URL: `http://localhost:3000`
+- Redirect URLs: `http://localhost:3000/auth/verify`
+
+### 5. 개발 서버 실행
+
+```bash
+npm run dev
+```
+
+---
+
+## GitHub → Vercel 배포
+
+### 1. GitHub 레포 생성 & 푸시
+
+```bash
+git init
+git add .
+git commit -m "feat: initial CBNUMatch setup"
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/cbnumatch.git
+git push -u origin main
+```
+
+### 2. Vercel 연결
+
+1. [vercel.com](https://vercel.com) → Add New Project
+2. GitHub 레포 선택 → Framework: **Next.js** 자동 감지
+3. **Deploy** 전에 반드시 환경변수 먼저 입력
+
+### 3. Vercel 환경변수 (⚠️ 필수)
+
+Vercel 대시보드 → Settings → Environment Variables:
+
+| 변수명 | Sensitive 여부 |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | ❌ |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ❌ |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ 반드시 체크 |
+| `ENCRYPTION_KEY` | ✅ 반드시 체크 |
+| `PEPPER_KEY` | ✅ 반드시 체크 |
+
+### 4. Supabase 프로덕션 URL 추가
+
+Supabase → Authentication → URL Configuration:
+- Redirect URLs에 `https://your-domain.vercel.app/auth/verify` 추가
+
+---
+
+## 프로젝트 구조
+
+```
+src/
+├── app/
+│   ├── actions/
+│   │   ├── authActions.ts         # 회원가입 / 로그인 / 로그아웃
+│   │   └── matchActions.ts        # 핵심 비즈니스 로직 (암호화 포함)
+│   ├── auth/login|signup|verify/  # 인증 페이지
+│   ├── feed/                      # 메인 피드 (무한스크롤)
+│   ├── posts/[id]/                # 게시글 상세 + 신청자 관리
+│   ├── posts/new/                 # 게시글 작성
+│   └── mypage/                    # 프로필 / 내 글 / 신청 현황
+├── components/
+│   ├── layout/Navbar.tsx
+│   └── feed/PostCard.tsx
+├── lib/
+│   ├── supabase.ts                # 브라우저 클라이언트
+│   └── supabase-server.ts         # 서버 전용 클라이언트
+├── types/database.types.ts        # TypeScript 타입 정의
+├── utils/crypto.ts                # AES-256-GCM + HMAC-SHA256
+└── middleware.ts                  # 라우트 보호 + 세션 갱신
+supabase_schema.sql                # DB 스키마 (SQL Editor에서 실행)
+```
+
+## 보안 설계 요약
+
+- **AES-256-GCM**: 이름·학번·연락처를 `iv:authTag:ciphertext` 포맷으로 암호화
+- **HMAC-SHA256 + PEPPER**: 학번 중복 탐지용 단방향 해시 (역산 불가)
+- **Supabase RLS**: 모든 테이블에 Row Level Security 적용
+- **소프트 삭제**: `is_deleted` 플래그로 데이터 보존 및 분쟁 추적
+- **서버 전용 키**: `ENCRYPTION_KEY`, `PEPPER_KEY`는 서버에서만 접근

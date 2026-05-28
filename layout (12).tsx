@@ -1,64 +1,57 @@
-'use client';
+'use server';
 
-import { useState, useTransition } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { signIn } from '@/app/actions/authActions';
+import { createServerActionClient } from '@/lib/supabase-server';
+import { redirect } from 'next/navigation';
+import type { ActionResult } from '@/types/database.types';
 
-export default function LoginPage() {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState('');
+export async function signUp(formData: FormData): Promise<ActionResult<void>> {
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError('');
-    const formData = new FormData(e.currentTarget);
-    startTransition(async () => {
-      const result = await signIn(formData);
-      if (result && !result.success) setError(result.error);
-    });
+  if (!email.endsWith('@cbnu.ac.kr')) {
+    return { success: false, error: '충북대학교 이메일(@cbnu.ac.kr)만 가입 가능합니다.' };
+  }
+  if (password.length < 8) {
+    return { success: false, error: '비밀번호는 8자 이상이어야 합니다.' };
   }
 
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
-      <div className="card fade-up" style={{ width: '100%', maxWidth: '420px', padding: '40px' }}>
-        {/* 헤더 */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ fontSize: '32px', marginBottom: '12px' }}>👋</div>
-          <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '8px' }}>다시 만나요</h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>충북대학교 이메일로 로그인하세요</p>
-        </div>
+  const supabase = await createServerActionClient();
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/verify` },
+  });
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-              이메일
-            </label>
-            <input name="email" type="email" required placeholder="학번@cbnu.ac.kr" className="input-base" />
-          </div>
+  if (error) {
+    if (error.message.includes('already registered')) {
+      return { success: false, error: '이미 가입된 이메일입니다.' };
+    }
+    return { success: false, error: '회원가입 중 오류가 발생했습니다.' };
+  }
 
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-              비밀번호
-            </label>
-            <input name="password" type="password" required placeholder="비밀번호 입력" className="input-base" />
-          </div>
+  return { success: true, data: undefined };
+}
 
-          {error && <div className="error-box">{error}</div>}
+export async function signIn(formData: FormData): Promise<ActionResult<void>> {
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
 
-          <button type="submit" disabled={isPending} className="btn-primary" style={{ width: '100%', marginTop: '8px' }}>
-            {isPending ? <span className="spinner" /> : '로그인'}
-          </button>
-        </form>
+  if (!email.endsWith('@cbnu.ac.kr')) {
+    return { success: false, error: '충북대학교 이메일(@cbnu.ac.kr)만 이용 가능합니다.' };
+  }
 
-        <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: 'var(--text-muted)' }}>
-          계정이 없으신가요?{' '}
-          <Link href="/auth/signup" style={{ color: 'var(--accent-blue)', textDecoration: 'none', fontWeight: '600' }}>
-            회원가입
-          </Link>
-        </p>
-      </div>
-    </div>
-  );
+  const supabase = await createServerActionClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    return { success: false, error: '이메일 또는 비밀번호가 올바르지 않습니다.' };
+  }
+
+  redirect('/feed');
+}
+
+export async function signOut(): Promise<void> {
+  const supabase = await createServerActionClient();
+  await supabase.auth.signOut();
+  redirect('/auth/login');
 }
