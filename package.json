@@ -1,146 +1,30 @@
-'use client';
-
-import { useState, useEffect, useTransition } from 'react';
-import { getMyProfile, registerProfile, updateProfile } from '@/app/actions/matchActions';
-import type { DecryptedProfile } from '@/types/database.types';
-
-const DEPARTMENTS = ['컴퓨터공학과', '전자공학과', '기계공학과', '경영학과', '법학과', '의학과', '간호학과', '교육학과', '체육교육과', '기타'];
-
-export default function ProfilePage() {
-  const [isPending, startTransition] = useTransition();
-  const [profile, setProfile] = useState<DecryptedProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  useEffect(() => {
-    getMyProfile().then((res) => {
-      if (res.success) setProfile(res.data);
-      else setEditing(true); // 프로필 없으면 바로 등록 폼
-      setLoading(false);
-    });
-  }, []);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setMsg('');
-    const fd = new FormData(e.currentTarget);
-    const input = {
-      name: fd.get('name') as string,
-      studentId: fd.get('studentId') as string,
-      phone: fd.get('phone') as string,
-      department: fd.get('department') as string,
-      grade: Number(fd.get('grade')),
-    };
-
-    startTransition(async () => {
-      const result = profile
-        ? await updateProfile(input)
-        : await registerProfile(input);
-
-      if (result.success) {
-        const refreshed = await getMyProfile();
-        if (refreshed.success) setProfile(refreshed.data);
-        setEditing(false);
-        setMsg('✅ 프로필이 저장되었습니다.');
-      } else {
-        setMsg(`❌ ${result.error}`);
-      }
-    });
+{
+  "name": "cbnumatch",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.106.2",
+    "lucide-react": "^1.16.0",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
-
-  if (loading) return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}>
-      <span className="spinner" style={{ width: '32px', height: '32px', borderWidth: '3px' }} />
-    </div>
-  );
-
-  // 프로필 보기 모드
-  if (profile && !editing) return (
-    <div className="fade-up" style={{ maxWidth: '480px' }}>
-      <div className="card" style={{ padding: '28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '700' }}>내 프로필</h2>
-          <button onClick={() => { setEditing(true); setMsg(''); }} className="btn-secondary" style={{ padding: '6px 14px', fontSize: '12px' }}>
-            수정
-          </button>
-        </div>
-        {[
-          { label: '이름', value: profile.name },
-          { label: '학번', value: profile.studentId },
-          { label: '연락처', value: profile.phone },
-          { label: '학과', value: profile.department },
-          { label: '학년', value: `${profile.grade}학년` },
-          { label: '이메일', value: profile.email },
-        ].map(({ label, value }) => (
-          <div key={label} style={{ display: 'flex', gap: '16px', paddingBottom: '14px', marginBottom: '14px', borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', minWidth: '60px', paddingTop: '1px' }}>{label}</span>
-            <span style={{ fontSize: '14px', fontWeight: '500' }}>{value}</span>
-          </div>
-        ))}
-        <div style={{ marginTop: '8px', padding: '12px', background: 'rgba(59,130,246,0.06)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
-          🔐 이름·학번·연락처는 AES-256-GCM으로 암호화 저장됩니다
-        </div>
-      </div>
-      {msg && <div className="error-box" style={{ marginTop: '12px', background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.25)', color: '#6ee7b7' }}>{msg}</div>}
-    </div>
-  );
-
-  // 등록/수정 폼
-  return (
-    <div className="fade-up" style={{ maxWidth: '480px' }}>
-      <div className="card" style={{ padding: '28px' }}>
-        <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '6px' }}>
-          {profile ? '프로필 수정' : '프로필 등록'}
-        </h2>
-        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '24px' }}>
-          입력한 정보는 암호화되어 안전하게 보관됩니다
-        </p>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>이름 *</label>
-            <input name="name" required defaultValue={profile?.name} placeholder="실명 입력" className="input-base" />
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>학번 *</label>
-            <input name="studentId" required defaultValue={profile?.studentId}
-              placeholder="예: 2021123456" className="input-base"
-              disabled={!!profile} // 등록 후 학번 변경 불가
-              style={{ opacity: profile ? 0.6 : 1 }} />
-            {profile && <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>학번은 변경할 수 없습니다</p>}
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>연락처 *</label>
-            <input name="phone" required defaultValue={profile?.phone} placeholder="010-0000-0000" className="input-base" />
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>학과 *</label>
-            <select name="department" required defaultValue={profile?.department ?? ''} className="input-base">
-              <option value="" disabled>학과 선택</option>
-              {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>학년 *</label>
-            <select name="grade" required defaultValue={profile?.grade ?? ''} className="input-base">
-              <option value="" disabled>학년 선택</option>
-              {[1,2,3,4,5,6].map((g) => <option key={g} value={g}>{g}학년</option>)}
-            </select>
-          </div>
-
-          {msg && <div className="error-box">{msg}</div>}
-
-          <div style={{ display: 'flex', gap: '10px', paddingTop: '8px' }}>
-            {profile && (
-              <button type="button" onClick={() => { setEditing(false); setMsg(''); }} className="btn-secondary" style={{ flex: 1 }}>취소</button>
-            )}
-            <button type="submit" disabled={isPending} className="btn-primary" style={{ flex: 2 }}>
-              {isPending ? <span className="spinner" /> : profile ? '저장' : '프로필 등록'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
 }
